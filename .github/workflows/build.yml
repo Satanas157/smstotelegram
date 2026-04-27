@@ -14,13 +14,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build with Buildozer
-        uses: kivy/buildozer-action@master
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
         with:
-          workdir: .
-          buildozer_version: master
+          command: buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Binario-Pericial-Debug
+          name: apk-debug
           path: bin/*.apk
