@@ -13,14 +13,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          command: buildozer android debug
+          python-version: '3.11'
 
-      - name: Upload APK
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential git python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good libsqlite3-dev sqlite3 bzip2 libbz2-dev libssl-dev openssl libgdbm-dev libncursesw5-dev libffi-dev tk-dev libdb5.3-dev libexpat1-dev lzma liblzma-dev libreadline-dev unzip zip openjdk-17-jdk autoconf libtool pkg-config libncurses5-dev libtinfo5 cmake libstdc++6 ccache
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install --upgrade Cython==0.29.33 buildozer
+
+      - name: Build with Buildozer
+        run: |
+          yes | buildozer android debug
+        env:
+          PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: apk-debug
+          name: package
           path: bin/*.apk
