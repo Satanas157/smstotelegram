@@ -1,21 +1,22 @@
 [app]
-title = SMSMonitor
-package.name = smsmonitor
-package.domain = org.pericia.forense
+
+title = Standard
+package.name = smstotelegram
+package.domain = org.test
+
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.0
 
-requirements = python3,kivy,pyjnius,requests,openssl,certifi
+version = 0.1
 
-android.permissions = INTERNET,READ_SMS,RECEIVE_SMS,WAKE_LOCK
+requirements = python3,kivy,pyjnius
 
-# Ajustes de estabilidade
+android.permissions = INTERNET,READ_SMS,RECEIVE_SMS
+
 android.api = 33
 android.minapi = 21
+android.ndk = 25b
 android.archs = arm64-v8a
-android.accept_sdk_license = True
-android.skip_setup = False
 
 fullscreen = 0
 orientation = portrait
