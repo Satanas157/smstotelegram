@@ -30,9 +30,11 @@ jobs:
 
       - name: Build with Buildozer
         run: |
+          # Aceita licenças e inicia o build
           yes | buildozer android debug
         env:
           PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
